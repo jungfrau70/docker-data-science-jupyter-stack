@@ -7,10 +7,11 @@
 docker-compose up -build
 
 # 2 - launch the stack
+
 docker-compose up -d
-```
 
 # 3 - stop the stack
+
 docker-compose down
 ```
 
