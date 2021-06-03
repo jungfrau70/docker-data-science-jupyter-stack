@@ -1,4 +1,4 @@
-# beyond-jupyter
+# data-science-jupyter-stack
 
 ## How to run
 ```
@@ -22,4 +22,3 @@ docker-compose down
 | Portainer | 9090 |
 | Postgres | 5432 |
 | adminer  | 8080 |
-# elyra-kubeflow
