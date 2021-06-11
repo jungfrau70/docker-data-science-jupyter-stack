@@ -1,8 +1,8 @@
 # Copyright (c) Jupyter Development Team.
 # Distributed under the terms of the Modified BSD License.
 
-ARG BASE_IMAGE=elyra/elyra:dev
-#ARG BASE_IMAGE=tensorflow/tensorflow:2.1.0-py3-jupyter
+#ARG BASE_IMAGE=elyra/elyra:dev
+ARG BASE_IMAGE=tensorflow/tensorflow:2.1.0-py3-jupyter
 FROM $BASE_IMAGE
 
 ARG TF_SERVING_VERSION=0.0.0
@@ -50,6 +50,7 @@ RUN apt-get update && apt-get install -yq --no-install-recommends \
   build-essential \
   bzip2 \
   ca-certificates \
+  chrpath libssl-dev libxft-dev libfreetype6-dev libfreetype6 libfontconfig1-dev libfontconfig1 \
   curl \
   g++ \
   git \
@@ -73,11 +74,6 @@ RUN apt-get update && apt-get install -yq --no-install-recommends \
   && apt-get clean && \
   rm -rf /var/lib/apt/lists/*
 
-# RUN wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-# RUN dpkg -i google-chrome-stable_current_amd64.deb
-# RUN apt-get update --fix-missing
-# RUN dpkg --configure -a
-# RUN apt-get -fy install
 
 # We need wget to set up the PPA and xvfb to have a virtual screen and unzip to install the Chromedriver
 RUN apt-get install -y wget xvfb unzip
@@ -102,9 +98,9 @@ RUN unzip $CHROMEDRIVER_DIR/chromedriver* -d $CHROMEDRIVER_DIR
 # Put Chromedriver into the PATH
 ENV PATH $CHROMEDRIVER_DIR:$PATH
 
-# Download, unzip, and install chromedriver
-# RUN wget -O /tmp/chromedriver.zip http://chromedriver.storage.googleapis.com/`curl -sS chromedriver.storage.googleapis.com/LATEST_RELEASE`/chromedriver_linux64.zip
-# RUN unzip /tmp/chromedriver.zip chromedriver -d /usr/local/bin/
+# Download and install PhantomJS
+RUN wget https://bitbucket.org/ariya/phantomjs/downloads/phantomjs-2.1.1-linux-x86_64.tar.bz2 
+RUN tar xvjf phantomjs-2.1.1-linux-x86_64.tar.bz2 -C /usr/local/share/ 
 
 # Install Nodejs for jupyterlab-manager
 RUN curl -sL https://deb.nodesource.com/setup_12.x | sudo -E bash -
@@ -142,10 +138,10 @@ ENV LANGUAGE en_US.UTF-8
 # Create NB_USER user with UID=1000 and in the 'users' group
 # but allow for non-initial launches of the notebook to have
 # $HOME provided by the contents of a PV
-# RUN useradd -M -s /bin/bash -N -u $NB_UID $NB_USER && \
-#     chown -R ${NB_USER}:users /usr/local/bin && \
-#     mkdir -p $HOME && \
-#     chown -R ${NB_USER}:users ${HOME}
+RUN useradd -M -s /bin/bash -N -u $NB_UID $NB_USER && \
+    chown -R ${NB_USER}:users /usr/local/bin && \
+    mkdir -p $HOME && \
+    chown -R ${NB_USER}:users ${HOME}
 
 RUN curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
 RUN echo "deb https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee -a /etc/apt/sources.list.d/kubernetes.list
@@ -170,15 +166,23 @@ RUN pip3 --no-cache-dir install \
     xgboost \
     kubeflow-fairing==1.0.1
 
-COPY --chown=jovyan:users requirements.txt .
+# COPY --chown=${NB_USER} requirements.txt .
+COPY --chown=${NB_USER}:users requirements.txt .
 
 RUN python3 -m pip install --upgrade pip
 RUN pip3 install -r requirements.txt
+RUN pip3 install -U jupyter-client
 
+# RUN docker-credential-gcr configure-docker && chown ${NB_USER} $HOME/.docker/config.json
 RUN docker-credential-gcr configure-docker && chown ${NB_USER}:users $HOME/.docker/config.json
+
+# COPY sudoer
+RUN usermod -aG sudo ${NB_USER}
+RUN echo 'jovyan:jupyter' | chpasswd
+COPY  ./linuxize /etc/sudoers.d/linuxize
 
 # Configure container startup
 EXPOSE 8888
-USER jovyan
+USER ${NB_USER}
 # ENTRYPOINT ["tini", "--"]
 # CMD ["sh","-c", "jupyter lab --notebook-dir=/home/${NB_USER} --ip=0.0.0.0 --no-browser --allow-root --port=8888 --NotebookApp.token='' --NotebookApp.password='' --NotebookApp.allow_origin='*' --NotebookApp.base_url=${NB_PREFIX}"]

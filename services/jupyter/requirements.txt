@@ -6,7 +6,7 @@ ipywidgets
 
 # tensorflow related packages
 tensor2tensor
-tensorflow-gpu
+# tensorflow-gpu
 
 # Common data science packages
 h5py
