@@ -22,4 +22,5 @@ docker-compose down
 | Minio   | 9000 |
 | Portainer | 9090 |
 | Postgres | 5432 |
+| Mysql   | 3306 |
 | adminer  | 8080 |
